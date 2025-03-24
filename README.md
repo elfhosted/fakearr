@@ -1,0 +1,1 @@
+This is a "workalike" copy of Puks' original fake-torrent-server, intended to work alongside a prowlarr indexer in order to feed torrents / NZBs to debridav.
