@@ -61,7 +61,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/", requestHandler)
-	port := 8080
+	port := 8000
 	log.Printf("Starting fakearr on :%d", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
