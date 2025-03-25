@@ -167,7 +167,7 @@ def newznab_api():
 
         ET.SubElement(channel, "title").text = "ElfEasyNews Results"
         ET.SubElement(channel, "description").text = "A custom indexer for Stremio-based searches."
-        ET.SubElement(channel, "link").text = "http://127.0.0.1:5000/"
+        ET.SubElement(channel, "link").text = "http://debridav:5001/"
         ET.SubElement(channel, "language").text = "en-us"
 
 
@@ -175,7 +175,7 @@ def newznab_api():
             title = result.get("behaviorHints", {}).get("fileName") or result.get("name", "Unknown Title")
             size = str(result.get("behaviorHints", {}).get("videoSize", 104857600))
             quality = result.get("name", "Unknown Quality")
-            nzb_url = f"http://127.0.0.1:5000/fake_nzb/{title}.nzb"
+            nzb_url = f"http://debridav:5001/fake_nzb/{title}.nzb"
 
             item = ET.SubElement(channel, "item")
             ET.SubElement(item, "title").text = title
