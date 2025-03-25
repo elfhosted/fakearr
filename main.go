@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"time"
 )
 
 // generateFakeInfoHash creates a random 20-byte infohash
