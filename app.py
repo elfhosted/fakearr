@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %
 app = Flask(__name__)
 
 # Stremio Addon Config
-STREMIO_BASE_URL = "http://elfhosted-internal.easynewsplus"
+STREMIO_BASE_URL = os.getenv("EASYNEWSPLUS_URL", "http://elfhosted-internal.easynewsplus")
 USERNAME = os.getenv("EASYNEWS_USERNAME", "default_user")
 PASSWORD = os.getenv("EASYNEWS_PASSWORD", "default_pass")
 FAKE_NZB_DIR = "/tmp/nzb_files"

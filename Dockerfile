@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 5000
 
 # Define environment variable (optional)
-ENV FLASK_APP=app.py
+ENV FLASK_APP=fakearr.py
 
 # Run the application
-CMD ["python", "fakearr.py"]
+CMD ["uvicorn", "app_asgi:app", "--host", "0.0.0.0", "--port", "5001"]
