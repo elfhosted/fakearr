@@ -192,4 +192,4 @@ def generate_fake_nzb(filename):
     return send_file(fake_nzb_path, as_attachment=True)
 
 if __name__ == "__main__":
-    app.run(port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

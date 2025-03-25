@@ -17,4 +17,4 @@ EXPOSE 5000
 ENV FLASK_APP=fakearr.py
 
 # Run the application
-CMD ["uvicorn", "app_asgi:app", "--host", "0.0.0.0", "--port", "5001"]
+CMD ["python", "fakearr.py"]
