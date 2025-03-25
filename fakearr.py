@@ -66,9 +66,60 @@ def newznab_api():
     if mode == "movie" or mode == "tvsearch":
         mode = "search"
 
+    # --- CAPS RESPONSE ---
+    if mode == "caps":
+        root = ET.Element("caps")
+        
+        # Server info
+        server = ET.SubElement(root, "server", 
+                               appversion="0.8.21.0", 
+                               version="0.1", 
+                               title="ElfEasyNews", 
+                               strapline="ElfEasyNews Indexer", 
+                               email="support@elfeasynews.com", 
+                               meta="elf, easynews, indexer", 
+                               url="https://elfeasynews.com", 
+                               image="https://elfeasynews.com/logo.png")
+        
+        # Limits
+        limits = ET.SubElement(root, "limits", max="100", default="50")
+        
+        # Registration info
+        registration = ET.SubElement(root, "registration", available="yes", open="no")
+        
+        # Searching capabilities
+        searching = ET.SubElement(root, "searching")
+        ET.SubElement(searching, "search", available="yes", supportedParams="q")
+        ET.SubElement(searching, "tv-search", available="yes", supportedParams="q, imdbid, season, ep, tvdbid, traktid, rid, tvmazeid")
+        ET.SubElement(searching, "movie-search", available="yes", supportedParams="q, imdbid")
+        ET.SubElement(searching, "audio-search", available="no", supportedParams="")
+        
+        # Categories
+        categories = ET.SubElement(root, "categories")
+        categories_data = [
+            {"id": "1000", "name": "Console", "subcats": [
+                {"id": "1110", "name": "3DS"}, {"id": "1010", "name": "NDS"}, {"id": "1999", "name": "Other"}]},
+            {"id": "2000", "name": "Movies", "subcats": [
+                {"id": "2050", "name": "3D"}, {"id": "2060", "name": "BluRay"}, {"id": "2070", "name": "DVD"}]},
+            {"id": "3000", "name": "Audio", "subcats": [
+                {"id": "3030", "name": "Audiobook"}, {"id": "3010", "name": "MP3"}]},
+            {"id": "5000", "name": "TV", "subcats": [
+                {"id": "5070", "name": "Anime"}, {"id": "5080", "name": "Documentary"}]},
+            {"id": "7000", "name": "Books", "subcats": [
+                {"id": "7030", "name": "Comics"}, {"id": "7020", "name": "Ebook"}]},
+            {"id": "0", "name": "Other", "subcats": [
+                {"id": "20", "name": "Hashed"}, {"id": "10", "name": "Misc"}]},
+        ]
+
+        for category in categories_data:
+            category_element = ET.SubElement(categories, "category", id=category["id"], name=category["name"])
+            for subcat in category["subcats"]:
+                ET.SubElement(category_element, "subcat", id=subcat["id"], name=subcat["name"])
+
+        return xml_response(root)
 
     # --- SEARCH RESPONSE ---
-    if mode == "search":
+    elif mode == "search":
         imdbid = request.args.get("imdbid")
         season = request.args.get("season")
         episode = request.args.get("ep")
