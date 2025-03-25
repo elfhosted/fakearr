@@ -19,18 +19,30 @@ func generateFakeInfoHash() string {
 	return hex.EncodeToString(bytes)
 }
 
-// generateFakeTorrent creates a fake torrent file content with a valid structure
 func generateFakeTorrent(filename string) string {
-	// Basic structure for the torrent
-	infohash := generateFakeInfoHash()
+	// File metadata
+	fileLength := 1073741824 // 1GB in bytes
+	pieceLength := 524288    // Typical piece length (512 KB)
+	infohash := generateFakeInfoHash() // Fake infohash
 
-	// The "info" dictionary inside the torrent file should be properly formatted
-	torrentContent := fmt.Sprintf(`d8:announce13:fake-tracker4:infod4:name%d:%s6:lengthi123456e12:piece lengthi524288e6:pieces20:%se`, 
-		len(filename), filename, infohash)
+	// Create the "files" section with a single file, formatted as a list of dictionaries
+	filesContent := fmt.Sprintf(
+		"l" + 
+		"d12:path%d:%s6:lengthi%d" + // File's path and length
+		"e", 
+		len(filename), filename, fileLength,
+	)
+
+	// Full torrent content with infohash and files key
+	torrentContent := fmt.Sprintf(
+		"d8:announce13:fake-tracker4:infod4:name%d:%s6:lengthi%d12:piece lengthi%d6:pieces20:%se6:filesl%sse",
+		len(filename), filename, fileLength, pieceLength, infohash, filesContent,
+	)
 
 	// Return the content for the .torrent file
 	return torrentContent
 }
+
 
 func generateFakeNZB(filename string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="utf-8"?>
