@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"time"
 )
 
 // generateFakeInfoHash creates a random 20-byte infohash
@@ -17,6 +18,19 @@ func generateFakeInfoHash() string {
 		log.Fatal("Failed to generate random infohash")
 	}
 	return hex.EncodeToString(bytes)
+}
+
+// generateFakeTorrent creates a fake torrent file content with a valid structure
+func generateFakeTorrent(filename string) string {
+	// Basic structure for the torrent
+	infohash := generateFakeInfoHash()
+
+	// The "info" dictionary inside the torrent file should be properly formatted
+	torrentContent := fmt.Sprintf(`d8:announce13:fake-tracker4:infod4:name%d:%s6:lengthi123456e12:piece lengthi524288e6:pieces20:%se`, 
+		len(filename), filename, infohash)
+
+	// Return the content for the .torrent file
+	return torrentContent
 }
 
 func generateFakeNZB(filename string) string {
@@ -34,6 +48,7 @@ func generateFakeNZB(filename string) string {
 </nzb>`, 1234567890, filename)
 }
 
+// requestHandler processes both .torrent and .nzb requests
 func requestHandler(w http.ResponseWriter, r *http.Request) {
 	var re = regexp.MustCompile(`^/(.*)\.(torrent|nzb)$`)
 	matches := re.FindStringSubmatch(r.URL.Path)
@@ -45,9 +60,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 	filename := matches[1]
 	switch matches[2] {
 	case "torrent":
-		infoHash := generateFakeInfoHash()
-		torrentContent := fmt.Sprintf(`d8:announce13:fake-tracker4:infod4:name%d:%s6:lengthi123456e12:piece lengthi524288e6:pieces20:%se`,
-			len(filename), filename, infoHash)
+		torrentContent := generateFakeTorrent(filename)
 		w.Header().Set("Content-Type", "application/x-bittorrent")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.torrent\"", filename))
 		_, _ = w.Write([]byte(torrentContent))
