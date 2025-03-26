@@ -106,12 +106,14 @@ def newznab_api():
             {"id": "2000", "name": "Movies"},
             {"id": "3000", "name": "Audio", "subcats": [
                 {"id": "3030", "name": "Audiobook"}, {"id": "3010", "name": "MP3"}]},
-            {"id": "5000", "name": "TV"}]
+            {"id": "5000", "name": "TV"}
+        ]
 
         for category in categories_data:
             category_element = ET.SubElement(categories, "category", id=category["id"], name=category["name"])
-            for subcat in category["subcats"]:
-                ET.SubElement(category_element, "subcat", id=subcat["id"], name=subcat["name"])
+            if "subcats" in category:  # Check if 'subcats' key exists
+                for subcat in category["subcats"]:
+                    ET.SubElement(category_element, "subcat", id=subcat["id"], name=subcat["name"])
 
         return xml_response(root)
 
