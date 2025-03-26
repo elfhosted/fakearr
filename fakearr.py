@@ -14,6 +14,8 @@ app = Flask(__name__)
 STREMIO_BASE_URL = os.getenv("EASYNEWSPLUS_URL", "http://elfhosted-internal.easynewsplus")
 USERNAME = os.getenv("EASYNEWS_USERNAME", "default_user")
 PASSWORD = os.getenv("EASYNEWS_PASSWORD", "default_pass")
+FAKEARR_BASE_URL = os.getenv('FAKEARR_BASE_URL', 'http://debridav:5001')
+
 FAKE_NZB_DIR = "/tmp/nzb_files"
 os.makedirs(FAKE_NZB_DIR, exist_ok=True)
 
@@ -58,9 +60,9 @@ def query_stremio(imdbid=None, season=None, episode=None):
 def newznab_api():
     mode = request.args.get("t")
 
-    # Check for `q` in the query parameters and return null if found
-    if request.args.get("q"):
-        return "null"
+    # # Check for `q` in the query parameters and return null if found
+    # if request.args.get("q"):
+    #     return "null"
 
     # Redirect /api?t=movie and /api?t=tvsearch to /api?t=search
     if mode == "movie" or mode == "tvsearch":
@@ -167,7 +169,7 @@ def newznab_api():
 
         ET.SubElement(channel, "title").text = "ElfEasyNews Results"
         ET.SubElement(channel, "description").text = "A custom indexer for Stremio-based searches."
-        ET.SubElement(channel, "link").text = "http://debridav:5001/"
+        ET.SubElement(channel, "link").text = FAKEARR_BASE_URL
         ET.SubElement(channel, "language").text = "en-us"
 
 
@@ -175,7 +177,7 @@ def newznab_api():
             title = result.get("behaviorHints", {}).get("fileName") or result.get("name", "Unknown Title")
             size = str(result.get("behaviorHints", {}).get("videoSize", 104857600))
             quality = result.get("name", "Unknown Quality")
-            nzb_url = f"http://debridav:5001/fake_nzb/{title}.nzb"
+            nzb_url = f"{FAKEARR_BASE_URL}/fake_nzb/{title}.nzb"
 
             item = ET.SubElement(channel, "item")
             ET.SubElement(item, "title").text = title
@@ -186,16 +188,16 @@ def newznab_api():
             guid.text = nzb_url
             guid.set("isPermaLink", "true")
 
-            ET.SubElement(item, "pubDate").text = "Mon, 25 Mar 2025 12:00:00 GMT"
+            ET.SubElement(item, "pubDate").text = "Mon, 25 Mar 2024 12:00:00 GMT"
 
             # --- Ensure Correct Category (Movies: 2000, TV Shows: 5000) ---
             # Fake TV episode will use 5000 category, Fake Movie will use 2000 category
-            if "Fake TV Show" in title:
+            if season and episode:
                 category_id = "5000"
-                category_text = "Movies"
+                category_text = "TV"
             else:
                 category_id = "2000"
-                category_text = "TV"
+                category_text = "Movies"
             
             # Add both formats for category
             ET.SubElement(item, "category").text = category_text  # Standard format
