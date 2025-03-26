@@ -65,16 +65,8 @@ def newznab_api():
     #     return "null"
 
     # Redirect /api?t=movie and /api?t=tvsearch to /api?t=search
-    if mode == "movie" or mode == "search":
-        category_id = "2000"
-        category_text = "Movies"
+    if mode == "movie" or mode == "tv":
         mode = "search"
-        
-
-    if mode == "tvsearch":
-        category_id = "5000"
-        category_text = "TV"   
-        mode = "search"     
 
     # --- CAPS RESPONSE ---
     if mode == "caps":
@@ -107,19 +99,10 @@ def newznab_api():
         # Categories
         categories = ET.SubElement(root, "categories")
         categories_data = [
-            {"id": "1000", "name": "Console", "subcats": [
-                {"id": "1110", "name": "3DS"}, {"id": "1010", "name": "NDS"}, {"id": "1999", "name": "Other"}]},
-            {"id": "2000", "name": "Movies", "subcats": [
-                {"id": "2050", "name": "3D"}, {"id": "2060", "name": "BluRay"}, {"id": "2070", "name": "DVD"}]},
+            {"id": "2000", "name": "Movies"},
             {"id": "3000", "name": "Audio", "subcats": [
                 {"id": "3030", "name": "Audiobook"}, {"id": "3010", "name": "MP3"}]},
-            {"id": "5000", "name": "TV", "subcats": [
-                {"id": "5070", "name": "Anime"}, {"id": "5080", "name": "Documentary"}]},
-            {"id": "7000", "name": "Books", "subcats": [
-                {"id": "7030", "name": "Comics"}, {"id": "7020", "name": "Ebook"}]},
-            {"id": "0", "name": "Other", "subcats": [
-                {"id": "20", "name": "Hashed"}, {"id": "10", "name": "Misc"}]},
-        ]
+            {"id": "5000", "name": "TV"}]
 
         for category in categories_data:
             category_element = ET.SubElement(categories, "category", id=category["id"], name=category["name"])
@@ -196,7 +179,7 @@ def newznab_api():
             guid.text = nzb_url
             guid.set("isPermaLink", "true")
 
-            if title == "Fake TV Show":
+            if title == "Fake TV Show" or season:
                 category_text = "TV"   
                 category_id = "5000"
             else:
