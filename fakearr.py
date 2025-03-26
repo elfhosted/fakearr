@@ -65,8 +65,16 @@ def newznab_api():
     #     return "null"
 
     # Redirect /api?t=movie and /api?t=tvsearch to /api?t=search
-    if mode == "movie" or mode == "tvsearch":
+    if mode == "movie" or mode == "search":
+        category_id = "2000"
+        category_text = "Movies"
         mode = "search"
+        
+
+    if mode == "tvsearch":
+        category_id = "5000"
+        category_text = "TV"   
+        mode = "search"     
 
     # --- CAPS RESPONSE ---
     if mode == "caps":
@@ -188,16 +196,14 @@ def newznab_api():
             guid.text = nzb_url
             guid.set("isPermaLink", "true")
 
-            ET.SubElement(item, "pubDate").text = "Mon, 25 Mar 2024 12:00:00 GMT"
-
-            # --- Ensure Correct Category (Movies: 2000, TV Shows: 5000) ---
-            # Fake TV episode will use 5000 category, Fake Movie will use 2000 category
-            if season and episode:
+            if title == "Fake TV Show":
+                category_text = "TV"   
                 category_id = "5000"
-                category_text = "TV"
             else:
                 category_id = "2000"
-                category_text = "Movies"
+                category_text = "Movies"            
+                
+            ET.SubElement(item, "pubDate").text = "Mon, 25 Mar 2024 12:00:00 GMT"
             
             # Add both formats for category
             ET.SubElement(item, "category").text = category_text  # Standard format
