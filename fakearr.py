@@ -131,7 +131,7 @@ def newznab_api():
             imdbid = "tt" + imdbid        
 
         # If no search terms are provided, return predefined fake results (TV and Movie)
-        if not imdbid:
+        if not imdbid and not season and not episode:
             results = [
                 # Fake TV Episode
                 {
