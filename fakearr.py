@@ -34,6 +34,10 @@ def query_stremio(imdbid=None, season=None, episode=None):
         "sort3": "Date & Time", "sort3Direction": "Descending"
     })
 
+    # We can only query by imdb id
+    if not imdbid:
+        return []
+
     if season and episode:
         url = f"{STREMIO_BASE_URL}/{auth_payload}/stream/series/{imdbid or 'tt9288030'}:{season}:{episode}.json"
     else:
@@ -65,7 +69,7 @@ def newznab_api():
     #     return "null"
 
     # Redirect /api?t=movie and /api?t=tvsearch to /api?t=search
-    if mode == "movie" or mode == "tv":
+    if mode == "movie" or mode == "tvsearch":
         mode = "search"
 
     # --- CAPS RESPONSE ---
@@ -116,13 +120,14 @@ def newznab_api():
         imdbid = request.args.get("imdbid")
         season = request.args.get("season")
         episode = request.args.get("ep")
+        q = request.args.get("q")
 
         # Check if imdbid is provided and if it starts with 'tt'. If not, add 'tt' at the beginning.
         if imdbid and not imdbid.startswith("tt"):
             imdbid = "tt" + imdbid        
 
         # If no search terms are provided, return predefined fake results (TV and Movie)
-        if not imdbid and not season and not episode:
+        if not imdbid and not season and not episode and not q:
             results = [
                 # Fake TV Episode
                 {
