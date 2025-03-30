@@ -56,12 +56,12 @@ To configure FakeArr, set the following environment variables:
 ## Using Docker
 
 ```
-docker run -d -p 5001:5000 \
+docker run -d -p 5001:5001 \
   -e EASYNEWSPLUS_URL=https://easynewsplus.elfhosted.com \
   -e EASYNEWS_USERNAME=my_user \
   -e EASYNEWS_PASSWORD=my_pass \
   -e FAKEARR_BASE_URL=http://fakearr:5001 \
-  --name fakearr ghcr.io/elfhosted/fakearr
+  --name fakearr ghcr.io/elfhosted/fakearr:rolling
   ```
 
 ## License
