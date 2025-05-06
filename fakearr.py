@@ -150,8 +150,18 @@ def newznab_api():
         ET.SubElement(channel, "language").text = "en-us"
 
         for result in results:
-            title = result.get("behaviorHints", {}).get("fileName") or result.get("name", "Unknown Title")
-            size = str(result.get("behaviorHints", {}).get("videoSize", 104857600))
+            behavior = result.get("behaviorHints", {})
+
+            if EASYNEWS_VERSION == "plus":
+                title = behavior.get("fileName") or result.get("name", "Unknown Title")
+                size = str(behavior.get("videoSize", 104857600))
+            elif EASYNEWS_VERSION == "plusplus":
+                title = behavior.get("filename") or result.get("name", "Unknown Title")
+                size = str(behavior.get("rawSize", 104857600))
+            else:
+                title = result.get("name", "Unknown Title")
+                size = str(104857600)
+
             quality = result.get("name", "Unknown Quality")
             nzb_url = f"{FAKEARR_BASE_URL}/fake_nzb/{title}.nzb"
 
