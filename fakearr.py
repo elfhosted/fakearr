@@ -2,174 +2,152 @@ import os
 import requests
 import json
 import logging
+import urllib.parse
 import xml.etree.ElementTree as ET
 from flask import Flask, request, Response, send_file
-
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 app = Flask(__name__)
 
-# Stremio Addon Config
-STREMIO_BASE_URL = os.getenv("EASYNEWSPLUS_URL", "http://elfhosted-internal.easynewsplus")
+# Configuration from environment variables
+STREMIO_BASE_URL = os.getenv("EASYNEWS_ADDON_URL", "http://elfhosted-internal.easynewsplus")
 USERNAME = os.getenv("EASYNEWS_USERNAME", "default_user")
 PASSWORD = os.getenv("EASYNEWS_PASSWORD", "default_pass")
-FAKEARR_BASE_URL = os.getenv('FAKEARR_BASE_URL', 'http://debridav:5001')
+FAKEARR_BASE_URL = os.getenv("FAKEARR_BASE_URL", "http://debridav:5001")
+EASYNEWS_VERSION = os.getenv("EASYNEWS_VERSION", "plus").lower()
 
 FAKE_NZB_DIR = "/tmp/nzb_files"
 os.makedirs(FAKE_NZB_DIR, exist_ok=True)
 
-# Helper function to generate XML response
 def xml_response(root_element):
     xml_str = ET.tostring(root_element, encoding="utf-8", xml_declaration=True)
     return Response(xml_str, mimetype="application/xml")
 
-# Function to query Stremio addon
 def query_stremio(imdbid=None, season=None, episode=None):
-    auth_payload = json.dumps({
-        "username": USERNAME,
-        "password": PASSWORD,
-        "sort1": "Size", "sort1Direction": "Descending",
-        "sort2": "Relevance", "sort2Direction": "Descending",
-        "sort3": "Date & Time", "sort3Direction": "Descending"
-    })
-
-    # We can only query by imdb id
     if not imdbid:
         return []
 
-    if season and episode:
-        url = f"{STREMIO_BASE_URL}/{auth_payload}/stream/series/{imdbid or 'tt9288030'}:{season}:{episode}.json"
-    else:
-        url = f"{STREMIO_BASE_URL}/{auth_payload}/stream/movie/{imdbid or 'tt0137523'}.json"
+    # Build authentication payload based on addon version
+    if EASYNEWS_VERSION == "plus":
+        # EasyNews+ (Sleeyax)
+        auth_payload = {
+            "username": USERNAME,
+            "password": PASSWORD,
+            "sort1": os.getenv("EASYNEWS_SORT1", "Size"),
+            "sort1Direction": os.getenv("EASYNEWS_SORT1_DIR", "Descending"),
+            "sort2": os.getenv("EASYNEWS_SORT2", "Relevance"),
+            "sort2Direction": os.getenv("EASYNEWS_SORT2_DIR", "Descending"),
+            "sort3": os.getenv("EASYNEWS_SORT3", "Date & Time"),
+            "sort3Direction": os.getenv("EASYNEWS_SORT3_DIR", "Descending")
+        }
 
-    # Query the Stremio API
-    logging.debug(f"Querying Stremio with URL: {url}")
-    response = requests.get(url)
-    if response.status_code != 200:
-        logging.error(f"Stremio request failed with status {response.status_code}: {response.text}")
+    elif EASYNEWS_VERSION == "plusplus":
+        # EasyNews++ (panteLx)
+        auth_payload = {
+            "uiLanguage": os.getenv("EASYNEWS_UI_LANGUAGE", "eng"),
+            "username": USERNAME,
+            "password": PASSWORD,
+            "strictTitleMatching": os.getenv("EASYNEWS_STRICT_TITLE_MATCHING", "on"),
+            "preferredLanguage": os.getenv("EASYNEWS_PREFERRED_LANGUAGE", ""),
+            "sortingPreference": os.getenv("EASYNEWS_SORTING_PREFERENCE", "quality_first"),
+            "showQualities": os.getenv("EASYNEWS_SHOW_QUALITIES", "4k,1080p,720p,480p"),
+            "maxResultsPerQuality": os.getenv("EASYNEWS_MAX_RESULTS_PER_QUALITY", ""),
+            "maxFileSize": os.getenv("EASYNEWS_MAX_FILE_SIZE", "")
+        }
+
+    else:
+        logging.error("Invalid EASYNEWS_VERSION setting. Must be 'plus' or 'plusplus'.")
         return []
+
+    # Encode payload into the URL path
+    encoded_auth = urllib.parse.quote(json.dumps(auth_payload))
+
+    if season and episode:
+        url = f"{STREMIO_BASE_URL}/{encoded_auth}/stream/series/{imdbid}:{season}:{episode}.json"
+    else:
+        url = f"{STREMIO_BASE_URL}/{encoded_auth}/stream/movie/{imdbid}.json"
+
+    logging.debug(f"Querying Stremio Addon ({EASYNEWS_VERSION}) with URL: {url}")
 
     try:
-        json_response = response.json()
-        return json_response.get("streams", [])
-    except json.JSONDecodeError:
-        logging.error("Failed to parse JSON response from Stremio.")
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json().get("streams", [])
+    except Exception as e:
+        logging.error(f"Failed to query Stremio addon: {e}")
         return []
-
-
-    return response.json().get("streams", [])
 
 @app.route("/api", methods=["GET"])
 def newznab_api():
     mode = request.args.get("t")
 
-    # # Check for `q` in the query parameters and return null if found
-    # if request.args.get("q"):
-    #     return "null"
-
-    # Redirect /api?t=movie and /api?t=tvsearch to /api?t=search
     if mode == "movie" or mode == "tvsearch":
         mode = "search"
 
-    # --- CAPS RESPONSE ---
     if mode == "caps":
         root = ET.Element("caps")
-        
-        # Server info
-        server = ET.SubElement(root, "server", 
-                               appversion="0.8.21.0", 
-                               version="0.1", 
-                               title="ElfEasyNews", 
-                               strapline="ElfEasyNews Indexer", 
-                               email="support@elfeasynews.com", 
-                               meta="elf, easynews, indexer", 
-                               url="https://elfeasynews.com", 
-                               image="https://elfeasynews.com/logo.png")
-        
-        # Limits
-        limits = ET.SubElement(root, "limits", max="100", default="50")
-        
-        # Registration info
-        registration = ET.SubElement(root, "registration", available="yes", open="no")
-        
-        # Searching capabilities
+
+        ET.SubElement(root, "server", appversion="0.8.21.0", version="0.1", title="ElfEasyNews",
+                      strapline="ElfEasyNews Indexer", email="support@elfeasynews.com",
+                      meta="elf, easynews, indexer", url="https://elfeasynews.com",
+                      image="https://elfeasynews.com/logo.png")
+
+        ET.SubElement(root, "limits", max="100", default="50")
+        ET.SubElement(root, "registration", available="yes", open="no")
+
         searching = ET.SubElement(root, "searching")
         ET.SubElement(searching, "search", available="yes", supportedParams="q")
-        ET.SubElement(searching, "tv-search", available="yes", supportedParams="q, imdbid, season, ep, tvdbid, traktid, rid, tvmazeid")
+        ET.SubElement(searching, "tv-search", available="yes",
+                      supportedParams="q, imdbid, season, ep, tvdbid, traktid, rid, tvmazeid")
         ET.SubElement(searching, "movie-search", available="yes", supportedParams="q, imdbid")
         ET.SubElement(searching, "audio-search", available="no", supportedParams="")
-        
-        # Categories
+
         categories = ET.SubElement(root, "categories")
         categories_data = [
             {"id": "2000", "name": "Movies"},
-            {"id": "3000", "name": "Audio", "subcats": [
-                {"id": "3030", "name": "Audiobook"}, {"id": "3010", "name": "MP3"}]},
+            {"id": "3000", "name": "Audio", "subcats": [{"id": "3030", "name": "Audiobook"}, {"id": "3010", "name": "MP3"}]},
             {"id": "5000", "name": "TV"}
         ]
-
         for category in categories_data:
             category_element = ET.SubElement(categories, "category", id=category["id"], name=category["name"])
-            if "subcats" in category:  # Check if 'subcats' key exists
+            if "subcats" in category:
                 for subcat in category["subcats"]:
                     ET.SubElement(category_element, "subcat", id=subcat["id"], name=subcat["name"])
-
         return xml_response(root)
 
-    # --- SEARCH RESPONSE ---
     elif mode == "search":
         imdbid = request.args.get("imdbid")
         season = request.args.get("season")
         episode = request.args.get("ep")
         q = request.args.get("q")
 
-        # Check if imdbid is provided and if it starts with 'tt'. If not, add 'tt' at the beginning.
         if imdbid and not imdbid.startswith("tt"):
-            imdbid = "tt" + imdbid        
+            imdbid = "tt" + imdbid
 
-        # If no search terms are provided, return predefined fake results (TV and Movie)
         if not imdbid and not season and not episode and not q:
             results = [
-                # Fake TV Episode
-                {
-                    "name": "Fake TV Show",
-                    "behaviorHints": {"fileName": "Fake TV Show", "videoSize": 500000000},
-                    "description": "Fake TV Show Season 1 Episode 1",
-                    "url": "http://fakeurl.com/fake-tv-show-episode1.mp4"
-                },
-                # Fake Movie
-                {
-                    "name": "Fake Movie",
-                    "behaviorHints": {"fileName": "Fake Movie", "videoSize": 1500000000},
-                    "description": "Fake Movie Description",
-                    "url": "http://fakeurl.com/fake-movie.mp4"
-                }
+                {"name": "Fake TV Show", "behaviorHints": {"fileName": "Fake TV Show", "videoSize": 500000000},
+                 "description": "Fake TV Show Season 1 Episode 1", "url": "http://fakeurl.com/fake-tv-show-episode1.mp4"},
+                {"name": "Fake Movie", "behaviorHints": {"fileName": "Fake Movie", "videoSize": 1500000000},
+                 "description": "Fake Movie Description", "url": "http://fakeurl.com/fake-movie.mp4"}
             ]
         else:
-            # Query the Stremio API if search terms are provided
             results = query_stremio(imdbid, season, episode)
 
-        # Count the number of results
-        result_count = len(results)
-
-        # Log the result count
-        logging.info(f"Results found: {result_count}")
-
+        logging.info(f"Results found: {len(results)}")
 
         rss = ET.Element("rss", attrib={
-            "version": "2.0", 
-            "xmlns:atom": "http://www.w3.org/2005/Atom", 
-            "xmlns:newznab": "http://www.newznab.com/DTD/2010/feeds/attributes/", 
+            "version": "2.0",
+            "xmlns:atom": "http://www.w3.org/2005/Atom",
+            "xmlns:newznab": "http://www.newznab.com/DTD/2010/feeds/attributes/",
             "encoding": "utf-8"
         })
         channel = ET.SubElement(rss, "channel")
-
         ET.SubElement(channel, "title").text = "ElfEasyNews Results"
         ET.SubElement(channel, "description").text = "A custom indexer for Stremio-based searches."
         ET.SubElement(channel, "link").text = FAKEARR_BASE_URL
         ET.SubElement(channel, "language").text = "en-us"
-
 
         for result in results:
             title = result.get("behaviorHints", {}).get("fileName") or result.get("name", "Unknown Title")
@@ -182,27 +160,21 @@ def newznab_api():
             ET.SubElement(item, "description").text = title
             ET.SubElement(item, "link").text = nzb_url
 
-            guid = ET.SubElement(item, "guid")
+            guid = ET.SubElement(item, "guid", isPermaLink="true")
             guid.text = nzb_url
-            guid.set("isPermaLink", "true")
 
             if title == "Fake TV Show" or season:
-                category_text = "TV"   
+                category_text = "TV"
                 category_id = "5000"
             else:
+                category_text = "Movies"
                 category_id = "2000"
-                category_text = "Movies"            
-                
-            ET.SubElement(item, "pubDate").text = "Mon, 25 Mar 2024 12:00:00 GMT"
-            
-            # Add both formats for category
-            ET.SubElement(item, "category").text = category_text  # Standard format
-            ET.SubElement(item, "newznab:attr", {"name": "category", "value": category_id})  # Prowlarr format
 
-            enclosure = ET.SubElement(item, "enclosure")
-            enclosure.set("url", nzb_url)
-            enclosure.set("length", size)
-            enclosure.set("type", "application/x-nzb")
+            ET.SubElement(item, "pubDate").text = "Mon, 25 Mar 2024 12:00:00 GMT"
+            ET.SubElement(item, "category").text = category_text
+            ET.SubElement(item, "newznab:attr", {"name": "category", "value": category_id})
+
+            enclosure = ET.SubElement(item, "enclosure", url=nzb_url, length=size, type="application/x-nzb")
 
             attrs = [
                 ("size", size),
@@ -212,7 +184,6 @@ def newznab_api():
                 ("group", "alt.binaries.example"),
                 ("quality", quality),
             ]
-
             for attr_name, attr_value in attrs:
                 ET.SubElement(item, "newznab:attr", {"name": attr_name, "value": attr_value})
 
@@ -220,12 +191,9 @@ def newznab_api():
 
     return "Invalid request", 400
 
-
 @app.route("/fake_nzb/<filename>.nzb", methods=["GET"])
 def generate_fake_nzb(filename):
-    """Dynamically generate a fake NZB file."""
     fake_nzb_path = os.path.join(FAKE_NZB_DIR, f"{filename}.nzb")
-
     if not os.path.exists(fake_nzb_path):
         with open(fake_nzb_path, "w") as f:
             f.write(f"""<?xml version="1.0" encoding="utf-8"?>
@@ -237,7 +205,6 @@ def generate_fake_nzb(filename):
         </segments>
     </file>
 </nzb>""")
-
     return send_file(fake_nzb_path, as_attachment=True)
 
 if __name__ == "__main__":
