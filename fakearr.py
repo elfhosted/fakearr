@@ -153,7 +153,7 @@ def newznab_api():
                 group = "alt.binaries.example"
 
             elif EASYNEWS_VERSION == "plusplus":
-                title = result.get("behaviorHints", {}).get("filename") or result.get("name", "Unknown Title")
+                title = result.get("_temp", {}).get("file", {}).get("10") or result.get("name", "Unknown Title")
                 size = str(result.get("_temp", {}).get("file", {}).get("rawSize", 104857600))
                 quality = result.get("name", "Unknown Quality")
                 raw_date = result.get("_temp", {}).get("file", {}).get("5", "")
