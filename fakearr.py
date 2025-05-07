@@ -5,6 +5,7 @@ import logging
 import urllib.parse
 import xml.etree.ElementTree as ET
 from flask import Flask, request, Response, send_file
+from datetime import datetime
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -28,9 +29,7 @@ def query_stremio(imdbid=None, season=None, episode=None):
     if not imdbid:
         return []
 
-    # Build authentication payload based on addon version
     if EASYNEWS_VERSION == "plus":
-        # EasyNews+ (Sleeyax)
         auth_payload = {
             "username": USERNAME,
             "password": PASSWORD,
@@ -41,9 +40,7 @@ def query_stremio(imdbid=None, season=None, episode=None):
             "sort3": os.getenv("EASYNEWS_SORT3", "Date & Time"),
             "sort3Direction": os.getenv("EASYNEWS_SORT3_DIR", "Descending")
         }
-
     elif EASYNEWS_VERSION == "plusplus":
-        # EasyNews++ (panteLx)
         auth_payload = {
             "uiLanguage": os.getenv("EASYNEWS_UI_LANGUAGE", "eng"),
             "username": USERNAME,
@@ -55,12 +52,10 @@ def query_stremio(imdbid=None, season=None, episode=None):
             "maxResultsPerQuality": os.getenv("EASYNEWS_MAX_RESULTS_PER_QUALITY", ""),
             "maxFileSize": os.getenv("EASYNEWS_MAX_FILE_SIZE", "")
         }
-
     else:
         logging.error("Invalid EASYNEWS_VERSION setting. Must be 'plus' or 'plusplus'.")
         return []
 
-    # Encode payload into the URL path
     encoded_auth = urllib.parse.quote(json.dumps(auth_payload))
 
     if season and episode:
@@ -87,12 +82,10 @@ def newznab_api():
 
     if mode == "caps":
         root = ET.Element("caps")
-
         ET.SubElement(root, "server", appversion="0.8.21.0", version="0.1", title="ElfEasyNews",
                       strapline="ElfEasyNews Indexer", email="support@elfeasynews.com",
                       meta="elf, easynews, indexer", url="https://elfeasynews.com",
                       image="https://elfeasynews.com/logo.png")
-
         ET.SubElement(root, "limits", max="100", default="50")
         ET.SubElement(root, "registration", available="yes", open="no")
 
@@ -150,28 +143,36 @@ def newznab_api():
         ET.SubElement(channel, "language").text = "en-us"
 
         for result in results:
-            behavior = result.get("behaviorHints", {})
-
             if EASYNEWS_VERSION == "plus":
-                title = behavior.get("fileName") or result.get("name", "Unknown Title")
-                size = str(behavior.get("videoSize", 104857600))
+                title = result.get("behaviorHints", {}).get("fileName") or result.get("name", "Unknown Title")
+                size = str(result.get("behaviorHints", {}).get("videoSize", 104857600))
+                quality = result.get("name", "Unknown Quality")
+                parsed_date = "2025-03-25 12:00:00"
+                pub_date = "Tue, 25 Mar 2025 12:00:00 GMT"
+                poster = "user@example.com"
+                group = "alt.binaries.example"
+
             elif EASYNEWS_VERSION == "plusplus":
-                title = behavior.get("filename") or result.get("name", "Unknown Title")
-                size = str(behavior.get("rawSize", 104857600))
-            else:
-                title = result.get("name", "Unknown Title")
-                size = str(104857600)
+                title = result.get("behaviorHints", {}).get("filename") or result.get("name", "Unknown Title")
+                size = str(result.get("_temp", {}).get("file", {}).get("rawSize", 104857600))
+                quality = result.get("name", "Unknown Quality")
+                raw_date = result.get("_temp", {}).get("file", {}).get("5", "")
+                try:
+                    dt_obj = datetime.strptime(raw_date, "%m-%d-%Y %H:%M:%S")
+                    parsed_date = dt_obj.strftime("%Y-%m-%d %H:%M:%S")
+                    pub_date = dt_obj.strftime("%a, %d %b %Y %H:%M:%S GMT")
+                except Exception:
+                    parsed_date = "2025-03-25 12:00:00"
+                    pub_date = "Tue, 25 Mar 2025 12:00:00 GMT"
+                poster = result.get("_temp", {}).get("file", {}).get("7", "user@example.com")
+                group = result.get("_temp", {}).get("file", {}).get("9", "alt.binaries.example")
 
-            quality = result.get("name", "Unknown Quality")
             nzb_url = f"{FAKEARR_BASE_URL}/fake_nzb/{title}.nzb"
-
             item = ET.SubElement(channel, "item")
             ET.SubElement(item, "title").text = title
             ET.SubElement(item, "description").text = title
             ET.SubElement(item, "link").text = nzb_url
-
-            guid = ET.SubElement(item, "guid", isPermaLink="true")
-            guid.text = nzb_url
+            ET.SubElement(item, "guid", isPermaLink="true").text = nzb_url
 
             if title == "Fake TV Show" or season:
                 category_text = "TV"
@@ -180,7 +181,7 @@ def newznab_api():
                 category_text = "Movies"
                 category_id = "2000"
 
-            ET.SubElement(item, "pubDate").text = "Mon, 25 Mar 2024 12:00:00 GMT"
+            ET.SubElement(item, "pubDate").text = pub_date
             ET.SubElement(item, "category").text = category_text
             ET.SubElement(item, "newznab:attr", {"name": "category", "value": category_id})
 
@@ -189,9 +190,9 @@ def newznab_api():
             attrs = [
                 ("size", size),
                 ("grabs", "0"),
-                ("usenetdate", "2025-03-25 12:00:00"),
-                ("poster", "user@example.com"),
-                ("group", "alt.binaries.example"),
+                ("usenetdate", parsed_date),
+                ("poster", poster),
+                ("group", group),
                 ("quality", quality),
             ]
             for attr_name, attr_value in attrs:
